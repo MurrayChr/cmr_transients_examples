@@ -139,10 +139,13 @@ post_epm <- prepare_draws(fit_epm, common_params, "epm")
 post_hhmm <- prepare_draws(fit_hhmm, common_params, "hhmm")
 post <- rbind(post_epm, post_hhmm) 
 
-# plot
+# plot comparing marginal posterior densities
 post %>%
   ggplot(aes(x=value, colour=lk)) +
   geom_density(bounds=c(0,1)) +
   coord_cartesian(xlim=c(0,1)) +
   theme_light() +
   facet_wrap(vars(name), scales = "free")
+
+  
+
