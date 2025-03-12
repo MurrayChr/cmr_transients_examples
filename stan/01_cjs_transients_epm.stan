@@ -1,7 +1,8 @@
 // CJS model p(t)phi(t) i.e. time-dependent detection and survival, also 
 // accounting for time-dependent proportion of residents to transients in each cohort
-// multinomial formulation
-
+// 
+// This code implements the extended product-multinomial likelihood
+//
 // Important note: here the m-array data must be constructed from *only* those
 // individuals that were recaptured at least once after first capture
 
