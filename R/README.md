@@ -10,3 +10,6 @@ estimates to data-generating values.
 
 **03_single-state_transients_compare.R** simulates and fits the CJS-plus-transients
 model using both likelihoods, and compares the marginal posterior distributions. 
+
+**04_multi-state.R** simulates and fits a simple multistate model using the 
+product-multinomial likelihood, and compares estimates to data-generating values.
