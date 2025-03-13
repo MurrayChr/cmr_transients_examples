@@ -1,0 +1,81 @@
+//
+// Multi-site model with time- and site-dependent survival, site-dependent 
+// movement and time- and site-dependent detection. Here we treat the simplest 
+// case of two sites, thus there are two states:
+// 1 - alive at first site
+// 2 - alive at second site
+//
+// This code implements the product-multinomial likelihood for data in the form 
+// of an m-array.
+//
+
+functions {
+  matrix get_multinomial_probs(
+    data int T,
+    array[] vector p,
+    array[] vector phi,
+    array[] vector m
+  ) {
+    // matrix to store multinomial probabilities
+    matrix[2*(T-1), 2*(T-1)+1] pr = rep_matrix(0.0, 2*(T-1), 2*(T-1)+1);
+    // auxillary matrices to define multinomial probabilities
+    array[T-1] matrix[2,2] gamma;   // state transition probabilities
+    array[T] matrix[2,2] omega;     // state-dependent detection probabilities
+    for (t in 1:(T-1)) {
+      gamma[t][1] = [phi[1][t]*m[1][1], phi[1][t]*m[1][2]];
+      gamma[t][2] = [phi[2][t]*m[2][1], phi[2][t]*m[2][2]];
+    }
+    for (t in 1:T) {
+      omega[t][1] = [p[1][t], 1-p[1][t]];
+      omega[t][2] = [p[2][t], 1-p[2][t]];
+    }
+    // define entries of pr using matrix multiplication
+    for (I in 1:(T-1)) {  // block row index
+      for (J in I:(T-1)) {  // block column index
+        // row and column indices to define the 12x12 block
+        int i1 = 1 + 2*(I-1);
+        int i2 = 2*I;
+        int j1 = 1 + 2*(J-1);
+        int j2 = 2*J;
+        if (I == J) {  // diagonal block
+          pr[i1:i2, j1:j2] = diag_post_multiply(gamma[I], omega[I+1][:,1]);
+        }
+        else if (I < J) {  // above-diagonal block
+          matrix[2,2] temp = diag_post_multiply(gamma[I], omega[I+1][:,2]);
+          if ( (I+1) < J ) {
+            for (t in (I+1):(J-1)) {
+              temp = temp * diag_post_multiply(gamma[t], omega[t+1][:,2]);
+            }
+          }
+          pr[i1:i2, j1:j2] = temp * diag_post_multiply(gamma[J], omega[J+1][:,1]);
+        }
+      }
+    }
+    // enforce row-sum-to-one constraint
+    for (i in 1:(2*(T-1))){
+      pr[i, 2*(T-1)+1] = 1 - sum(pr[i, 1:2*(T-1)]);
+    }
+      return pr;
+    }
+}
+
+data {
+  int<lower=2> T;                           // number of years
+  array[2*(T-1), 2*(T-1)+1] int<lower=0> marr;    // m-array
+}
+
+parameters {
+  array[2] vector<lower=0,upper=1>[T] p;      // detection probabilities
+  array[2] vector<lower=0,upper=1>[T-1] phi;  // survival probabilities
+  array[2] simplex[2] m;                      // movement probabilities 
+}
+
+model {
+  // calculate multinomial probabilities
+  matrix[2*(T-1), 2*(T-1)+1] pr;
+  pr = get_multinomial_probs( T, p, phi, m );
+  // m-array capture-recapture likelihood
+  for (i in 1:(2*(T-1))) {
+    marr[i] ~ multinomial(pr[i]');
+  }
+}
