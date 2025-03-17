@@ -4,7 +4,7 @@
 #' and time- and site-dependent detection. 
 #' We treat the simplest case of two sites, thus the are two states:
 #'  1 - alive at first site
-#'  2 - alive at second sitetwo-state
+#'  2 - alive at second site
 #'  In the simulation we also explicitly include the 'dead state.
 library(tidyverse)
 library(cmdstanr)
