@@ -107,7 +107,7 @@ for (n in 1:N_rr) {
 }
 
 # compile and fit Stan model
-file <- "stan/05_ms_transients_hhmm.stan"
+file <- "stan/02b_ms_transients_hhmm.stan"
 mod <- cmdstan_model(file)
 stan_data <- list(T=T, N=N_rr, y=y_rr, fc=fc_rr, fc_state=fc_state_rr, mult=mult_rr)
 fit <- mod$sample(stan_data, parallel_chains = 4)

@@ -108,7 +108,7 @@ for (t in 1:(T-1)) {
 }
 
 # compile and fit Stan model
-file <- "stan/04_ms_transients_epm.stan"
+file <- "stan/02a_ms_transients_epm.stan"
 mod <- cmdstan_model(file)
 stan_data <- list(T = T, marr = marr_recapt, Nmult = Nmult, Nsingle = Nsingle)
 fit <- mod$sample(stan_data, parallel_chains = 4)

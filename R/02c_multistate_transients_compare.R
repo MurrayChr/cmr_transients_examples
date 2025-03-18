@@ -102,7 +102,7 @@ for (t in 1:(T-1)) {
 }
 
 # compile and fit Stan model
-file_epm <- "stan/04_ms_transients_epm.stan"
+file_epm <- "stan/02a_ms_transients_epm.stan"
 mod_epm <- cmdstan_model(file_epm)
 stan_data_epm <- list(T = T, marr = marr_recapt, Nmult = Nmult, Nsingle = Nsingle)
 fit_epm <- mod_epm$sample(stan_data_epm, parallel_chains = 4)
@@ -132,7 +132,7 @@ for (n in 1:N_rr) {
 }
 
 # compile and fit Stan model
-file_hhmm <- "stan/05_ms_transients_hhmm.stan"
+file_hhmm <- "stan/02b_ms_transients_hhmm.stan"
 mod_hhmm <- cmdstan_model(file_hhmm)
 stan_data_hhmm <- list(T=T, N=N_rr, y=y_rr, fc=fc_rr, fc_state=fc_state_rr, mult=mult_rr)
 fit_hhmm <- mod_hhmm$sample(stan_data_hhmm, parallel_chains = 4)

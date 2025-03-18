@@ -81,7 +81,7 @@ for (t in 1:(T-1)) {
 }
 
 # fit the model
-file_tr <- "stan/01_cjs_transients_epm.stan"
+file_tr <- "stan/01a_cjs_transients_epm.stan"
 mod_tr <- cmdstan_model(file_tr)
 stan_data_tr <- list( T=T, marr=marr_recapt, N_1=n_recapt, N_0=n_never_recapt )
 fit_tr <- mod_tr$sample( stan_data_tr, parallel_chains = 4 )

@@ -77,7 +77,7 @@ for(i in 1:N) {
 marr <- get_marray(y, nStates = 2)
 
 # compile and fit Stan model
-file <- "stan/03_ms_pm.stan"
+file <- "stan/02_ms_pm.stan"
 mod <- cmdstan_model(file)
 stan_data <- list(T = T, marr = marr)
 fit <- mod$sample(stan_data, parallel_chains = 4)

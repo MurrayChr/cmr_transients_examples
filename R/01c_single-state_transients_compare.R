@@ -79,7 +79,7 @@ for (t in 1:(T-1)) {
 }
 
 # fit the model
-file_epm <- "stan/01_cjs_transients_epm.stan"
+file_epm <- "stan/01a_cjs_transients_epm.stan"
 mod_epm <- cmdstan_model(file_epm)
 stan_data_epm <- list( T=T, marr=marr_recapt, N_1=n_recapt, N_0=n_never_recapt )
 fit_epm <- mod_epm$sample( stan_data_epm, parallel_chains = 4)
@@ -110,7 +110,7 @@ fc_rr <- reduced_representation$fc
 mult_rr <- reduced_representation$n
 
 # fit the model
-file_hhmm <- "stan/02_cjs_transients_hhmm.stan"
+file_hhmm <- "stan/01b_cjs_transients_hhmm.stan"
 mod_hhmm <- cmdstan_model(file_hhmm) 
 stan_data_hhmm <- list(T = T, N = nrow(y_rr), y = y_rr, fc = fc_rr, mult = mult_rr)
 fit_hhmm <- mod_hhmm$sample(stan_data_hhmm, parallel_chains = 4)

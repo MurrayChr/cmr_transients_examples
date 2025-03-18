@@ -79,7 +79,7 @@ fc_rr <- reduced_representation$fc
 mult_rr <- reduced_representation$n
 
 # fit the model
-file_tr <- "stan/02_cjs_transients_hhmm.stan"
+file_tr <- "stan/01b_cjs_transients_hhmm.stan"
 mod_tr <- cmdstan_model(file_tr) 
 stan_data_tr <- list(T = T, N = nrow(y_rr), y = y_rr, fc = fc_rr, mult = mult_rr)
 fit_tr <- mod_tr$sample(stan_data_tr, parallel_chains = 4)
