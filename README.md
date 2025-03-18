@@ -1,2 +1,4 @@
 # cmr_transients_examples
 Simple examples of Bayesian mark-recapture models with transients, fit using extended-product-multinomial and hierarchical-hmm likelihoods.
+
+We consider a single-state Cormack-Jolly-Seber model and a multi-state model for survival and movement at two sites. First we provide R code to simulate data from these models and Stan code to fit them. Then we consider the extensions of each to include transients. Again, R code is provided to simulate from the models with transients, and Stan code is provided to fit these models. Both are written in such a way that the modifications required to move from the initial models *without* transients to the models accounting for transients are clear. We offer Stan implementations of our extended product-multinomial likelihood and a hierarchical hidden Markov model (or multievent) likelihood, and R code to compare the marginal posteriors.  
