@@ -6,6 +6,30 @@
 // Important note: here the m-array data must be constructed from *only* those
 // individuals that were recaptured at least once after first capture
 
+functions {
+  matrix get_multinomial_probs(
+    data int T,
+    vector p,
+    vector phi
+  ) {
+    // matrix to store multinomial probabilities
+    matrix[T-1, T] pr;
+    // convenience parameter
+    vector[T] q = 1 - p;
+    // define multinomial probabilities
+    for (t in 1:(T-1)) {
+      for (j in 1:(t-1)) {
+        pr[t][j] = 0;
+      }
+      for (j in t:(T - 1)) {
+        pr[t][j] = prod(phi[t:j]) * prod(q[(t+1):j]) * p[j+1] ;
+      }
+      pr[t][T] = 1 - sum(pr[t][1:(T-1)]);
+    }
+    return pr;
+  }
+}
+
 data {
   int<lower=2> T;                      // number of years
    array[T-1, T] int<lower=0> marr;    // m-array (see above)
@@ -20,23 +44,10 @@ parameters {
 } 
 
 model {
-  // declare object to store multinomial probabilities
-  array[T-1] vector[T] pr;      // 'standard' probabilities...
+  // multinomial probabilities
+  matrix[T-1, T] pr;
+  pr = get_multinomial_probs(T, p ,phi);
 
-  // convenience parameter
-  vector[T] q=1-p;
-
-  // define multinomial probabilities
-  for (t in 1:(T-1)) {
-    for (j in 1:(t-1)) {
-      pr[t][j] = 0;
-    }
-    for (j in t:(T - 1)) {
-      pr[t][j] = prod(phi[t:j]) * prod(q[(t+1):j]) * p[j+1] ;
-    }
-    pr[t][T] = 1 - sum(pr[t][1:(T-1)]);
-  }
- 
  // priors
   p ~ beta(1,1);
   phi ~ beta(1,1);
@@ -45,7 +56,7 @@ model {
   // likelihood...
   // ... for indiv recaptured at least once
   for (t in 1:(T - 1)) {
-    marr[t] ~ multinomial(pr[t]);
+    marr[t] ~ multinomial(pr[t]');
     target += N_1[t] * log(pi_r[t]); 
   }
   // ... for indiv never recaptured
