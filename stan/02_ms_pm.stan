@@ -32,7 +32,7 @@ functions {
     // define entries of pr using matrix multiplication
     for (I in 1:(T-1)) {  // block row index
       for (J in I:(T-1)) {  // block column index
-        // row and column indices to define the 12x12 block
+        // row and column indices to define the 2x2 block 
         int i1 = 1 + 2*(I-1);
         int i2 = 2*I;
         int j1 = 1 + 2*(J-1);
