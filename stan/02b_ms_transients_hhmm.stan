@@ -52,7 +52,7 @@ data {
   int<lower=1> N;                            // number of unique capture histories
   array[N,T] int y;                          // unique capture histories
   array[N] int<lower=1,upper=T-1> fc;        // first capture occasion
-  array[N] int<lower=1,upper=2> fc_state;  // first capture occasion
+  array[N] int<lower=1,upper=2> fc_state;    // first capture state
   array[N] int<lower=1> mult;                // capture history multiplicities
 }
 
