@@ -18,8 +18,8 @@ source("R/00_function_get_marray.R")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # set parameter values 
-T <- 20                     # number of years
-n <- 1000                    # number of newly marked birds per site per year
+T <- 10                     # number of years
+n <- 500                    # number of newly marked birds per site per year
 N <- 2*n*(T-1)              # total number of individuals in all years
 phi <- matrix(NA, nrow = 2, ncol = T-1)
 phi[1,] <- rbeta(T-1, 7, 3)     # survival at site 1
