@@ -27,12 +27,12 @@ prep_data_fns <- list(
 )
 
 # Set study size parameters
-T_vals <- c(5, 10, 20, 40)
-n_vals <- c(50, 100, 200, 400, 800)
+T_vals <- c(5, 10, 20)
+n_vals <- c(50, 100, 200, 400)
 
 # Sim, fit and save (so we don't have to do them all in one go)
-for (T in T_vals[1:2]) {
-  for (n in n_vals[1:3]) {
+for (T in T_vals) {
+  for (n in n_vals) {
     # file_suffix (for saving model fits)
     fs <- str_c(str_pad(T, 2, "left", pad = "0"),"_", 
                 str_pad(n, 3, "left", pad = "0"))
@@ -90,3 +90,30 @@ for (T in T_vals) {
 }
 
 rt$speedup <- with(rt, hhmm / epm)
+
+# plot
+model_names <- c(
+  '1' = "single-state",
+  '2' = "multi-state (2 states)",
+  '3' = "multi-state (4 states)"
+)
+as_tibble(rt) %>%
+  ggplot( aes(x = n, y = speedup, colour = as.factor(T)) ) +
+  geom_hline(yintercept = 10, linetype = "dashed", linewidth = 0.1) +
+  geom_hline(yintercept = 5, linetype = "dashed", linewidth = 0.1) +
+  geom_point(size = 2) + 
+  geom_line(alpha = 0.1, linewidth = 1) +
+  theme_classic() +
+  coord_cartesian(, xlim=c(30,420), ylim = c(0, 60)) +
+  scale_x_continuous(breaks = c(n_vals, 300)) +
+  scale_y_continuous(breaks = c(5, 10,seq(0,100, length.out = 6))) +
+  scale_colour_discrete(name = "Occasions") +
+  theme(
+    panel.grid.major = element_line(colour = "grey95"),
+    legend.position.inside = TRUE,
+    legend.position = c(0.85, 0.75)
+  ) +
+  facet_wrap(vars(model), labeller = as_labeller(model_names)) +
+  labs(y = "Speed-up factor", x = "Number of newly marked individuals per occasion")
+ggsave("figs/04_compare_efficiency.png", scale = 1.2)  
+
