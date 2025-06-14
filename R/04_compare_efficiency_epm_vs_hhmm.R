@@ -5,6 +5,14 @@ library(cmdstanr)
 source("R/00_function_get_marray.R")
 source("R/04_data_sim_and_prep_functions.R")
 
+# Set study size parameters
+T_vals <- c(5, 10, 20)
+n_vals <- c(50, 100, 200, 400)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#           ---- Simulate data, fit models and save ----
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Compile Stan models 
 mod_01_epm <- cmdstan_model("stan/01a_cjs_transients_epm.stan")
 mod_01_hhmm <- cmdstan_model("stan/01b_cjs_transients_hhmm.stan")
@@ -26,9 +34,7 @@ prep_data_fns <- list(
   list("epm" = prep_data_03_epm, "hhmm" = prep_data_03_hhmm)
 )
 
-# Set study size parameters
-T_vals <- c(5, 10, 20)
-n_vals <- c(50, 100, 200, 400)
+
 
 # Sim, fit and save (so we don't have to do them all in one go)
 for (T in T_vals) {
@@ -59,6 +65,10 @@ for (T in T_vals) {
     }
   }
 }
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#             ---- Read in models and make figure(s) ----
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Assemble dataframe of runtimes
 rt <- data.frame(
@@ -91,29 +101,31 @@ for (T in T_vals) {
 
 rt$speedup <- with(rt, hhmm / epm)
 
-# plot
+# Plot
 model_names <- c(
-  '1' = "single-state",
-  '2' = "multi-state (2 states)",
-  '3' = "multi-state (4 states)"
+  '1' = "Single-state",
+  '2' = "Multistate (2 states)",
+  '3' = "Multistate (4 states)"
 )
+colours <- viridisLite::mako(3, begin = 0.3, end = 0.8)
 as_tibble(rt) %>%
   ggplot( aes(x = n, y = speedup, colour = as.factor(T)) ) +
-  geom_hline(yintercept = 10, linetype = "dashed", linewidth = 0.1) +
-  geom_hline(yintercept = 5, linetype = "dashed", linewidth = 0.1) +
-  geom_point(size = 2) + 
-  geom_line(alpha = 0.1, linewidth = 1) +
+  geom_point(size = 2.5) + 
+  geom_line(alpha = 0.3, linewidth = 1) +
   theme_classic() +
-  coord_cartesian(, xlim=c(30,420), ylim = c(0, 60)) +
+  coord_cartesian(ylim = c(0, 60)) +
   scale_x_continuous(breaks = c(n_vals, 300)) +
-  scale_y_continuous(breaks = c(5, 10,seq(0,100, length.out = 6))) +
-  scale_colour_discrete(name = "Occasions") +
+  scale_y_continuous(breaks =10*(0:6)) +
+  scale_colour_manual(name = "Occasions", values = colours) +
   theme(
     panel.grid.major = element_line(colour = "grey95"),
-    legend.position.inside = TRUE,
-    legend.position = c(0.85, 0.75)
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10),
+    aspect.ratio = 1.4,
+    strip.text = element_text(size = 11)
   ) +
   facet_wrap(vars(model), labeller = as_labeller(model_names)) +
-  labs(y = "Speed-up factor", x = "Number of newly marked individuals per occasion")
+  labs(y = "Speed-up factor", x = "Newly marked individuals per occasion")
 ggsave("figs/04_compare_efficiency.png", scale = 1.2)  
 
