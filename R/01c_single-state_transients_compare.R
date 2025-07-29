@@ -11,8 +11,8 @@ source("R/00_function_plot_estimates.R")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # set parameter values 
-T <- 10                       # number of years
-n <- 1000                      # number of newly marked birds each year
+T <- 5                       # number of years
+n <- 50                      # number of newly marked birds each year
 N <- n*(T-1)                  # total number of individuals in all years
 phi <- rbeta(T-1, 7, 3)     # survival
 p <- rbeta(T, 6, 4)         # detection
@@ -135,17 +135,34 @@ prepare_draws <- function(fit, params, name) {
     select(-starts_with(".")) %>%
     pivot_longer(-"lk")
 }
-post_epm <- prepare_draws(fit_epm, common_params, "epm")
-post_hhmm <- prepare_draws(fit_hhmm, common_params, "hhmm")
+post_epm <- prepare_draws(fit_epm, common_params, "EPM")
+post_hhmm <- prepare_draws(fit_hhmm, common_params, "HHMM")
 post <- rbind(post_epm, post_hhmm) 
 
 # plot comparing marginal posterior densities
 post %>%
+  mutate(
+    var = str_extract(name, "[a-z_]+(?=\\[)"),
+    time = str_extract(name, "(?<=\\[)[1-9]+(?=\\])")
+  ) %>%
   ggplot(aes(x=value, colour=lk)) +
-  geom_density(bounds=c(0,1)) +
+  stat_density(geom="line", position="identity", bounds = c(0,1)) +
   coord_cartesian(xlim=c(0,1)) +
-  theme_light() +
-  facet_wrap(vars(name), scales = "free")
-
+  scale_x_continuous(breaks = seq(0, 1, length.out = 3)) +
+  theme_classic() +
+  facet_grid(var ~ time) +
+  labs(
+    colour="Likelihood",
+    x = "parameter value",
+    y = "posterior density"
+  ) +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(0.9, 0.5),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    aspect.ratio = 1.5
+  )
+ggsave("figs/01c_compare_marginal_posteriors.png", scale = 1.5)
   
 
