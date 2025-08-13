@@ -2,72 +2,44 @@
 title: "Guide to Implementation in Stan"
 format: html
 number-sections: true
+self-contained: true
 number-depth: 3
 editor: visual
 ---
-## TO DO {.unnumbered}
 
-1. Get the notation for states and occasions consistent (and consistent with the ms!)
+# Overview
 
-## Overview
-
-This guide contains a brief summary of how to extend various initial models to account for transients. Three initial models of increasing complexity are considered:
+This is a guide to implementing extended product-multinomial (EPM) likelihoods for transient mixture models in Stan and R. We consider the situation where one has an initial *base* model for which a product-multinomial likelihood is available, and one wants to extend the model to account for transients. Three base models of increasing complexity are considered:
 
 1.  A single-state Cormack-Jolly-Seber model.
 2.  A multi-state model of survival and movement between two sites (thus a multi-site model).
 3.  A multi-state model of survival and movement between two sites, incorporating trap-dependence.
 
-For each of these examples we briefly present a Stan implementation of the initial models, before explaining the changes in data preparation and Stan code that are required to accomodate transients.
+For each example we briefly discuss the Stan implementation of the product-multinomial likelihood for the base model. Thereafter we explain the modifications required to the data preparation (in R) and Stan code that are required to accommodate transients with the EPM likelihood.
 
+::: callout-caution
+We have attempted to code the models as efficiently as possible but make no guarantees.
+:::
 
+## Prerequisites
 
-### Product-multinomial likelihoods 
+We assume some familiarity with Stan; resources can be found [here](https://mc-stan.org/docs/). We also assume some familiarity with m-arrays or product-multinomial likelihoods for single- and multi-state models. One good resource for these topics is Williams *et al*.
 
-Our approach to incorporating transients is computationally advantageous when the
-initial model has a fast product-multinomial likelihood for a reduced data representation
-known as an 'm-array'. The most complex parts of the code are those that calculate 
-the cell probabilities for these multinomial likelihoods in terms of e.g. survival and 
-detection probabilities. For readers unfamiliar with these we refer to Williams 
-et al.
+# Single-state Cormack-Jolly-Seber model
 
-Package in functions ... could explain a bit about those functions?
+The model has a single live state and time-dependent survival and detection parameters.
 
-### Parameter structure
-We consider time-varying survival, detection and residency probabilities,
-but time-constant movement probabilities. 
-
-## Stan code
-
-We kinda assume some familiarity with Stan code... Excellent references here and
-here and here.
-
-### Disclaimer
-
-This code may not be best practice Stan code!
-
-## Single-state Cormack-Jolly-Seber model
-
-The model has a single live state, and the capture histories can be summarised
-by the number of individuals released on occasion $s$ that are next recapture on
-occasion $t$, or never recaptured. 
-
-### The initial model without transients
+## The base model without transients
 
 #### Preparing the data in R
 
-From the capture history matrix one summarises the data as an m-array. We have 
-written our own function to do this, `get_marray`, but others are available, 
-e.g. in R2ucare. In the single-state case the m-array is a $T-1 \times T$ matrix,
-where $T$ are the number of sampling occasions. 
+From the capture history matrix one summarises the data as an m-array. We have written our own function to do this, `get_marray`, but others are available, e.g. in R2ucare. In the single-state case the m-array is a $T-1 \times T$ matrix, where $T$ are the number of sampling occasions.
 
 #### Stan code
 
-The trickiest part to coding the model is calculating the cell probabilities for
-the multinomial distributions. We bundle this into a function `get_multinomial_probs`
-in the `functions` code block. The rest is, hopefully, quite self explanatory:
+The trickiest part to coding the model is calculating the cell probabilities for the multinomial distributions; we'll return to this in a moment. Here's an outline of the Stan code with this step bundled into a function `get_multinomial_probs` in the `functions` code block:
 
-
-```stan
+``` stan
 functions {
   matrix get_multinomial_probs( data int T, vector p, vector phi ) { 
   // ... function body ...
@@ -100,46 +72,90 @@ model {
 }
 ```
 
+The m-array has $T-1$ rows, and the cell probabilities for each row are stored in the corresponding row of the matrix `pr`. Stan's `multinomial()` function accepts a column vector argument, so we transpose the row vector `pr[t]` (the $t^{\text{th}}$ row of `pr`) in the function call (with `pr[t]'`). One does not need to supply the total number of 'trials' to `multinomial()`, the function calculates it as the sum over all bins. 
 
-In Stan, a single index into a matrix (e.g. `marr[t]`) returns the relevant *row*
-of the matrix. The prime in `multinomial(pr[t]')` transposes the row vector `pr[t]` 
-to give a vector which is accepted by the mutinomial distribution. 
+Now we return to the m-array and its cell probabilities. Although we have defined the m-array `marr` as a two-dimensional array in the code, one can think of it as a $(T-1) \times T$ matrix. The entry in row $t$, column $j$ is either
 
+- the number of individuals released on occasion $t$ and next recaptured on occasion $j+1$, for $1 \leq t \leq j \leq T-1$, or
+- the number of individuals released on occasion $t$ and never recaptured, for $1 \leq t < j = T$, or
+- zero otherwise.
 
-### Extending the model to account for transients
+The matrix `pr` contains the corresponding probabilities; these are easiest to describe in a few examples from which the general pattern becomes clear.
 
-Now we consider the extension to account for transients. In the 'initial' model
-all individuals are assumed to be residents. 
+- If $t = j$, we want the probability that an individual released on occasion $t$ is recaptured at the next occasion $t+1$, which is 
+$$
+\phi_tp_{t+1}
+$$
+
+- Moving along row $t$, if $j = t+1$, we want the probability that an individual released on occasion $t$ is next recaptured on occasion $t+2$, which requires that they survive to $t+1$ and fail to be detected at $t+1$, then survive to to $t+2$ and be detected, thus
+$$
+(\phi_tq_{t+1})(\phi_{t+1}p_{t+2}), 
+$$
+where for convenience we set $q = 1 - p$.
+
+- In general, for $1 \leq t < j < T$, we want the probability that an individual released on occasion $t$ is next recaptured on occasion $j+1$, which requires survival from $t$ to $j+1$, non-detections up to and including time $j$, and a detection at time $j+1$:
+$$
+\left(\prod_{s = t}^{j-1} \phi_{s}q_{s+1} \right) \phi_{j}p_{j+1}
+$$
+
+- For each release occasion $1 \leq t \leq T-1$, the probability of the event *released on occasion $t$ and never recaptured* is simply one minus the sum of probabilities of being *released on occasion $t$ and next recaptured on occasion $j+1$* over all possible recapture occasion $j + 1 = t+1, \cdots, T$. Thus we calculate these as one minus the row sum for the first $T-1$ columns of `pr`.
+
+Here is the Stan code for the function `get_multinomial_probs` that creates the matrix `pr` by using these calculations.
+
+``` stan
+matrix get_multinomial_probs(
+    data int T,
+    vector p,
+    vector phi
+  ) {
+    // matrix to store multinomial probabilities
+    matrix[T-1, T] pr;
+    // convenience parameter
+    vector[T] q = 1 - p;
+    // define multinomial probabilities
+    for (t in 1:(T-1)) {
+      for (j in 1:(t-1)) {
+        pr[t][j] = 0;
+      }
+      for (j in t:(T - 1)) {
+        pr[t][j] = prod(phi[t:j]) * prod(q[(t+1):j]) * p[j+1] ;
+      }
+      pr[t][T] = 1 - sum(pr[t][1:(T-1)]);
+    }
+    return pr;
+  }
+```
+
+## Extended product-multinomial likelihood for transients
+
+The base model assumes that all individuals are residents. Now we turn to the extension to account for transients. This requires
+some minor changes to
+
+- the construction of m-arrays in R, and
+
+- the Stan model code.
 
 #### Preparing the data in R
 
-The following steps are required to prepare the data for the extended product-multinomial 
-likelihood. 
+The following steps are required to prepare the data for the extended product-multinomial likelihood.
 
-i. Split the capture histories into single-encounter and
-multiple-encounter histories.
+i.  Split the capture histories into single-encounter and multiple-encounter histories.
 ii. Construct an m-array from the multiple-encounter capture histories alone.
-iii. Count the number of single-encounter and multiple-encounter capture histories in each 
-cohort. 
+iii. Count the number of single-encounter and multiple-encounter capture histories in each cohort.
 
 #### Stan code
 
-Fortunately, the most complicated part of the Stan code, namely the function
-`get_multinomial_probs` requires no changes, so the functions code block remains
-unchanged.
+Fortunately, the most complicated part of the Stan code, namely the function `get_multinomial_probs` requires no changes, so the functions code block remains unchanged.
 
-In the data block, we add the counts of single- and multi-encounter capture histories
-for each cohort. 
+In the data block, we add the counts of single- and multi-encounter capture histories for each cohort.
 
-:::{.callout-caution}
-The m-array here must be constructed from *only* multiple-encounter capture
-histories. This is easy to forget as the Stan code declaring the m-array is unchanged 
-from the initial model. 
+::: callout-caution
+The m-array here must be constructed from *only* multiple-encounter capture histories. This is easy to forget as the Stan code declaring the m-array is unchanged from the initial model.
 :::
 
 In the extended model the data block becomes
 
-```stan
+``` stan
 data {
   int<lower=2> T;                      // number of years
    array[T-1, T] int<lower=0> marr;    // m-array from multi-encounter histories only 
@@ -149,7 +165,8 @@ data {
 ```
 
 The parameters block needs only have the residency probabilities added to it:
-```stan
+
+``` stan
 parameters {
   vector<lower=0,upper=1>[T] p;         // detection probability for 'residents'
   vector<lower=0,upper=1>[T-1] phi;     // survival probability
@@ -157,9 +174,9 @@ parameters {
 }
 ```
 
-In the model block one adds priors for the new parameters, and increments the
-log-posterior with the extra terms resulting from transients:
-```stan
+In the model block one adds priors for the new parameters, and increments the log-posterior with the extra terms resulting from transients:
+
+``` stan
 model {
   // multinomial probabilities
   matrix[T-1, T] pr;
@@ -183,17 +200,11 @@ model {
 }
 ```
 
-In the likelihood for single-encounter capture histories, `pr[t][T]` contains
-the probability that an individual released at time $t$ is never recaptured, given
-that they are resident. 
+In the likelihood for single-encounter capture histories, `pr[t][T]` contains the probability that an individual released at time $t$ is never recaptured, given that they are resident.
 
-## Multi-state model 
+# Multi-state model
 
-The multi-state model we consider is a multi-site model with two sites, in which
-we model site-dependent survival, detection and movement. Now the m-array summarises
-the capture histories by the number of individuals released on occasion $s$ in state $i$
-that are next recaptured on occasion $t$ in state $j$, or never recaptured. Since
-there are two states the m-array has dimensions $2(T-1) \times 2(T-1)+1$.
+The multi-state model we consider is a multi-site model with two sites, in which we model site-dependent survival, detection and movement. Now the m-array summarises the capture histories by the number of individuals released on occasion $s$ in state $i$ that are next recaptured on occasion $t$ in state $j$, or never recaptured. Since there are two states the m-array has dimensions $2(T-1) \times 2(T-1)+1$.
 
 ### The initial model without transients
 
@@ -203,11 +214,9 @@ In R one constructs the multi-state m-array.
 
 #### Stan code
 
-The structure of the Stan code is very similar to the single-state model (without transients),
-except that the function to compute multinomial cell probabilities is a little more complicated.
-Treating the contents of the function as a black box for now, the Stan code is:
+The structure of the Stan code is very similar to the single-state model (without transients), except that the function to compute multinomial cell probabilities is a little more complicated. Treating the contents of the function as a black box for now, the Stan code is:
 
-```stan
+``` stan
 functions {
   matrix get_multinomial_probs(
     data int T,
@@ -240,48 +249,32 @@ model {
   }
 }
 ```
-Here we have coded the survival and detection parameters' dependence on sites using 
-an array of vectors. For example, `phi` is an array with two elements, `phi[1]` 
-is a vector of survival probabilities at site 1 for occasions $t = 1, \cdots, T-1$,
-and `phi[2]` contains those for site 2. The movement probabilities are conditional
-on survival, thus they must sum to one for each source site. Stan's simplex data
-type conveniently handles this constraint. Thus `m[1]` is a simplex (a vector of non-negative
-reals that sums to one) that stores the probabilities that an individual that survives at 
-site $1$ will remain at that site or move to site $2$.
 
+Here we have coded the survival and detection parameters' dependence on sites using an array of vectors. For example, `phi` is an array with two elements, `phi[1]` is a vector of survival probabilities at site 1 for occasions $t = 1, \cdots, T-1$, and `phi[2]` contains those for site 2. The movement probabilities are conditional on survival, thus they must sum to one for each source site. Stan's simplex data type conveniently handles this constraint. Thus `m[1]` is a simplex (a vector of non-negative reals that sums to one) that stores the probabilities that an individual that survives at site $1$ will remain at that site or move to site $2$.
 
 ### Extending the model to account for transients
 
-The extension to include transients requires the same types of moves as it did in
-the the single-state case.
+The extension to include transients requires the same types of moves as it did in the the single-state case.
 
 #### Preparing the data in R
 
-The following steps are required to prepare the data for the extended product-multinomial 
-likelihood. These are the same as in the single-state case, except for the last step.
+The following steps are required to prepare the data for the extended product-multinomial likelihood. These are the same as in the single-state case, except for the last step.
 
-i. Split the capture histories into single-encounter and
-multiple-encounter histories.
+i.  Split the capture histories into single-encounter and multiple-encounter histories.
 ii. Construct an m-array from the multiple-encounter capture histories alone.
-iii. Count the number of single-encounter and multiple-encounter capture histories 
-per cohort *and* state. That is, calculate $N^{\text{mult}}_{s,c}$, the number of
-multiple-encounter histories first captured on occasion $c$ in state $s$ (and the similarly
-defined $N^{\text{single}}_{s,c}$) for all first capture occasions $c = 1, \cdots, T-1$
-and states $s = 1,2$.
+iii. Count the number of single-encounter and multiple-encounter capture histories per cohort *and* state. That is, calculate $N^{\text{mult}}_{s,c}$, the number of multiple-encounter histories first captured on occasion $c$ in state $s$ (and the similarly defined $N^{\text{single}}_{s,c}$) for all first capture occasions $c = 1, \cdots, T-1$ and states $s = 1,2$.
 
 #### Stan code
 
-As in the single state case, most of the Stan code is recycled from the initial model,
-including the entire functions block. The only changes to the other blocks are
+As in the single state case, most of the Stan code is recycled from the initial model, including the entire functions block. The only changes to the other blocks are
 
-i. Add the numbers $N^{\text{mult}}_{s,c}$ and $N^{\text{single}}_{s,c}$ to the
-`data` block.
-ii. Add the residency parameters to the `parameters` block. 
-iii. In the model block, add priors for the residency parameters and increment the 
-log-posterior with the relevant terms. 
+i.  Add the numbers $N^{\text{mult}}_{s,c}$ and $N^{\text{single}}_{s,c}$ to the `data` block.
+ii. Add the residency parameters to the `parameters` block.
+iii. In the model block, add priors for the residency parameters and increment the log-posterior with the relevant terms.
 
 The Stan code is
-```stan
+
+``` stan
 functions {
   matrix get_multinomial_probs(
     data int T,
@@ -331,25 +324,12 @@ model {
     }
   }
 }
-
 ```
 
-:::{.callout-caution}
-Care is required with indexing to correctly select the probability of a single
-encounter history for an individual of a given cohort and first capture state, 
-conditional on residency.
+::: callout-caution
+Care is required with indexing to correctly select the probability of a single encounter history for an individual of a given cohort and first capture state, conditional on residency.
 :::
- 
-The m-array (and its cell probabilities) are arranged in $2 \times 2$ blocks, where
-each block corresponds to an occasion of release and next recapture. Within these
-blocks the rows and columns correspond to the states at release and recapture. So, for example,
-an individual released on occasion $t=3$ from state $s=1$ will have the probability of it's 
-various outcomes contained in row $s + 2(t-1) = 5$ of the matrix `pr` containging
-the multinomial cell probabilities. The probability of the outcome 'never recaptured'
-is in the last column of the matrix. 
+
+The m-array (and its cell probabilities) are arranged in $2 \times 2$ blocks, where each block corresponds to an occasion of release and next recapture. Within these blocks the rows and columns correspond to the states at release and recapture. So, for example, an individual released on occasion $t=3$ from state $s=1$ will have the probability of it's various outcomes contained in row $s + 2(t-1) = 5$ of the matrix `pr` containging the multinomial cell probabilities. The probability of the outcome 'never recaptured' is in the last column of the matrix.
 
 ## Multi-state trap-dependence model
-
-
-
-
