@@ -64,24 +64,20 @@ functions {
       ];
     }
     // define entries of pr using matrix multiplication
-    for (I in 1:(T-1)) {  // block row index
-      for (J in I:(T-1)) {  // block column index
-        // row and column indices to define the 4x4 block
-        int i1 = 1 + 4*(I-1);
-        int i2 = 4*I;
-        int j1 = 1 + 4*(J-1);
-        int j2 = 4*J;
-        if (I == J) {  // diagonal block
-          pr[i1:i2, j1:j2] = diag_post_multiply(gamma[I], omega[I+1][:,1]);
-        }
-        else if (I < J) {  // above-diagonal block
-          matrix[4,4] temp = diag_post_multiply(gamma[I], omega[I+1][:,2]);
-          if ( (I+1) < J ) {
-            for (t in (I+1):(J-1)) {
-              temp = temp * diag_post_multiply(gamma[t], omega[t+1][:,2]);
-            }
-          }
-          pr[i1:i2, j1:j2] = temp * diag_post_multiply(gamma[J], omega[J+1][:,1]);
+    for (rI in 1:(T-1)) { // block row index, reverse order
+      int I = T - rI;     // I runs from T-1 to 1
+      // row indices to for 4x4 block
+      int i1 = 1 + 4*(I-1);
+      int i2 = 4*I;
+      // diagonal block
+      pr[i1:i2, i1:i2] = diag_post_multiply(gamma[I], omega[I+1][:,1]); 
+      if (I < T-1) {
+        matrix[4,4] temp = diag_post_multiply(gamma[I], omega[I+1][:,2]);
+        for (J in (I+1):(T-1)) {
+          // column indices for 4x4 block
+          int j1 = 1 + 4*(J-1);
+          int j2 = 4*J;
+          pr[i1:i2, j1:j2] = temp * pr[(i1 + 4):(i2 + 4), j1:j2];
         }
       }
     }
