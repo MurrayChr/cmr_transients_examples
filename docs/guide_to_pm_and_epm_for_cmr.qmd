@@ -1,0 +1,534 @@
+---
+title: "A Guide to Product-multinomial and Extended Product-multinomial Likelihoods for Capture-Mark-Recapture Models"
+subtitle: "Using R and Stan"
+format: 
+  html:
+    page-layout: article
+    toc: true
+    toc-location: left
+number-sections: true
+self-contained: true
+number-depth: 3
+editor: visual
+---
+
+::: hidden
+$$
+\newcommand{\bo}{\boldsymbol{\omega}}
+\newcommand{\boc}{\overline{\boldsymbol{\omega}}}
+\newcommand{\bg}{\boldsymbol{\gamma}}
+\newcommand{\bz}{\boldsymbol{0}}
+\newcommand{\bx}{\boldsymbol{\xi}}
+\newcommand{\btheta}{\boldsymbol{\theta}}
+$$
+:::
+
+# Overview
+
+The purpose of this guide is to facilitate the implementation of extended product-multinomial likelihoods (EPM) for transient mixture models in R and Stan. Although the emphasis is on EPM likelihoods, we include an introduction to product-multinomial (PM) likelihoods and their implementation. Most of the programming effort goes into the reduction of capture histories to m-arrays and the calculation of associated multinomial cell probabilities. Having done this, only minor extensions are required to include transients.
+
+We consider the situation where one has an initial *base* model for which a PM likelihood is available, and one wants to extend the model to account for transients. Three base models of increasing complexity are considered:
+
+1.  A single-state Cormack-Jolly-Seber model (@sec-single-state).
+2.  A multi-state model of survival and movement between two sites.
+3.  A multi-state model of survival and movement between two sites, incorporating trap-dependence.
+
+The guide is organised into one section for each of these base models. Each section follows the same format, starting with the specification of the base model, then an explanation of the m-array data summary, the PM likelihood for the m-array, and the calculation of cell probabilities for the PM likelihood. Following that we discuss our implementation of the PM likelihood for the base model, then the EPM likelihood for the extension including transients.
+
+#### Prerequisites and further resources
+
+Some familiarity with Stan would be helpful but may not be essential; resources are available [here](https://mc-stan.org/docs/). We have attempted to provide a self-contained introduction to product-multinomial likelihoods for single state models (in @sec-single-state-pm) and multi-state models (in @sec-two-state-pm). For further reading we recommend Williams et al.
+
+# Single state model {#sec-single-state}
+
+## Base model specification
+
+The model has a single live state, and capture histories consist of ones and zeros, indicating that whether or not an individual captured on the corresponding sampling occasion. The model parameters consist of
+
+-   $\phi_t$: the probabilities of surviving from time $t$ to $t+1$,
+
+-   $p_t$: the probability of being detected at time $t$ given that an individual is alive then.
+
+## PM likelihood for the base model {#sec-single-state-pm}
+
+### Constructing the m-array
+
+The m-array summarises capture histories by the number of individuals that are released on a given occasion and next recaptured at some later occasion, or never recaptured. @tbl-cjs_ch and @tbl-cjs_m-array illustrate the construction of an m-array from capture histories for a study with five individuals over four sampling occasions.
+
+The first step, illustrated in @tbl-cjs_ch, is to decompose the capture histories into segments spanning from a release to the next recapture, or to the end of the capture history if the individual is never recaptured. For example, the history $1011$ describes an individual who was released on occasion $1$ and next recaptured on occasion $3$, then released on occasion $3$ and next recaptured on occasion $4$. Accordingly, $1011$ is split into two segments, $101*$ and $**11$, corresponding to these two release-next recapture occasions. In contrast, an individual with history $0100$ was released on occasion $1$ but never recaptured, resulting in one segment $*100$. (Use of the wildcard '$*$' is intended to convey that a segment will be found in any capture history containing the given pattern, e.g $**10$ is common to all of $0010, 0110, 1010, 1110$).
+
+| Complete capture history | Release (t=1) | Release (t=2) | Release (t=3) |
+|:------------------------:|:-------------:|:-------------:|:-------------:|
+|          $1011$          |    $101*$     |      \-       |    $**11$     |
+|          $1110$          |    $11**$     |    $*11*$     |    $**10$     |
+|          $1001$          |    $1001$     |      \-       |      \-       |
+|          $0110$          |      \-       |    $*11*$     |    $**10$     |
+|          $0100$          |      \-       |    $*100$     |      \-       |
+
+: Some complete capture histories decomposed into release - next recapture segments {#tbl-cjs_ch tbl-colwidths="\[40,20,20,20\]"}
+
+The m-array counts the number of times a segment appears in the capture histories and arranges the totals in rows corresponding to release occasions and columns corresponding to occasions of next recapture or never recaptured. @tbl-cjs_m-array presents the m-array for these data. For example, the segment $101*$ involving a release on occasion $1$ and next recapture on occasion $3$ appears once, hence the entry in the row labelled **1** and column labelled **3**. The segment $**10$ appears twice in the data; it involves release on occasion three without subsequent recapture, hence the '$2$' in row **3**, column **never**.
+
+|       |  2  |  3  |  4  | never |
+|:-----:|:---:|:---:|:---:|:-----:|
+| **1** | $1$ | $1$ | $1$ |  $0$  |
+| **2** | $0$ | $2$ | $0$ |  $1$  |
+| **3** | $0$ | $0$ | $1$ |  $2$  |
+
+: m-array summary of the capture histories in @tbl-cjs_ch: row names indicate release occasions and column names the occasion of next recapture, or never recaptured. {#tbl-cjs_m-array tbl-colwidths="\[20,20,20,20,20\]"}
+
+### Product-multinomial likelihood
+
+Every individual released on a given occasion must be recaptured at some later occasion, or never recaptured. The number of individuals realising these possibilities are distributed according to a multinomial distribution. That is, each row $\mathbf{m}_i$ of the m-array $\mathbf{m}$ in @tbl-cjs_m-array are data for a multinomial distribution: $$
+\mathbf{m}_i \sim \text{multinomial}\left(\btheta_i\right) \hspace{5pt} \text{ for } \hspace{5pt}  i = 1,2,3,.
+$$ where the cell probabilities $\btheta_i$ are functions of the survival and detection probabilities, and sum to one. The likelihood for the full m-array is the product of these - hence the name product-multinomial likelihood.
+
+### Calculating cell probabilities {#sec-single-state-pm-probs}
+
+Now we calculate the cell probabilities $\btheta_i$ in terms of survival ($\phi_t$) and detection ($p_t$) probabilities. For convenience let $q_t = 1 - p_t$ be the probability of not being captured at time $t$. We need to calculate the probabilities of all possible segments. In the case of segments involving a later recapture, the following two examples should make the general pattern clear:
+
+-   $\text{Pr}(11**) = \phi_1p_2$ since it involves surviving from $t=1$ to $2$ and being recaptured at $t=2$,
+-   $\text{Pr}(*101) = \phi_2q_3 \cdot \phi_3p_4$, corresponding to survival from $t=2$ to $3$, not being recaptured at $t=3$, then surviving from time $3$ to $4$ and being recaptured at $t=4$,
+
+In the case of segments where an individual was released at time $t$ and never recaptured, the probabilities are one minus the probability of being released at time $t$ and recaptured at any later occasion. That is, if $\xi_t$ is the probability of never being recaptured given release at time $t$, then $\xi_t$ is calculated as one minus the sum of all the other entries in the same row. The $\xi_t$ can be written out in terms of survival and detection probabilities, but the expressions are rather lengthy and are not used directly, so we opt not do so.
+
+|       |    **2**    |         **3**         |              **4**              | **never** |
+|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
+| **1** | $\phi_1p_2$ | $\phi_1q_2 \phi_2p_3$ | $\phi_1q_2 \phi_2q_3 \phi_3p_4$ |  $\xi_1$  |
+| **2** |     $0$     |      $\phi_2p_3$      |      $\phi_2q_3 \phi_3p_4$      |  $\xi_2$  |
+| **3** |     $0$     |          $0$          |           $\phi_3p_4$           |  $\xi_3$  |
+
+: Cell probabilities for the m-array in @tbl-cjs_m-array: row names indicate release occasions and column names the occasion of next recapture, or never recaptured. {#tbl-cjs_pm_probs}
+
+Each row of this table provides the cell probabilities, $\boldsymbol{\theta}_i$, for the multinomial likelihood for the corresponding row, $\textbf{m}_i$, of the m-array:
+
+## Implementing the PM likelihood
+
+### Preparing the data in R
+
+We construct the m-array from the capture histories in R, using a function we have written to do this, `get_marray`. Others are available, e.g. in R2ucare. For the single-state model and a study of $T$ capture occasions, the m-array is a $T-1 \times T$ matrix.
+
+### Stan model code
+
+Stan code specifies how to calculate the log-likelihood given data (here an m-array) and parameters. The code is arranged into blocks for `functions`, `data`, `parameters` and `model`. We'll briefly explain each of these in turn.
+
+The most involved part of the code is calculating the cell probabilities for the multinomial distributions. We bundle this into a function `get_multinomial_probs` in the `functions` code block, which we explain in detail shortly:
+
+``` stan
+functions {
+  matrix get_multinomial_probs( data int T, vector p, vector phi ) { 
+  // ... function body ...
+  }
+}
+```
+
+The study length and m-array are declared in the `data` block:
+
+``` stan
+data {
+  int<lower=2> T;                     // number of years
+  array[T-1, T] int<lower=0> marr;    // m-array 
+}
+```
+
+We have declared the m-array as an array of non-negative integers; one can think of it as a matrix, or declare it as such if desired.
+
+The survival and detection parameters are declared in the `parameters` block. The MCMC will return samples from the joint posterior distribution over these.
+
+``` stan
+parameters {
+  vector<lower=0,upper=1>[T] p;         // detection probability
+  vector<lower=0,upper=1>[T-1] phi;     // survival probability
+} 
+```
+
+We constrain these probabilities with `<lower=0,upper=1>` in the declaration. Although there is no data with which to estimate `p[1]`, and survival `phi[T-1]` and detection `p[T]` are not separately identifiable, we prefer to use vectors of this length for `p` and `phi`  so that the indices into these vectors correspond to sampling occasions.
+
+In the model block we define priors for the parameters, call our function to calculate the multinomial probabilities, and evaluate the log-likelihood.
+
+``` stan
+model {
+  // multinomial probabilities
+  matrix[T-1, T] pr;      
+  pr = get_multinomial_probs(T, p ,phi);
+  
+  // priors
+  p ~ beta(1,1);
+  phi ~ beta(1,1);
+  
+  // likelihood
+  for (t in 1:(T - 1)) {
+    marr[t] ~ multinomial(pr[t]');
+  }
+}
+```
+
+The m-array has $T-1$ rows, and the cell probabilities for each row are stored in the corresponding row of the matrix `pr`. Stan's `multinomial()` function accepts a column vector argument, so we transpose the row vector `pr[t]` (the $t^{\text{th}}$ row of `pr`) in the function call (with `pr[t]'`). One does not need to supply the total number of 'trials' to `multinomial()`, the function calculates it as the sum over all bins.
+
+Lastly, here is the Stan code for the function `get_multinomial_probs` that calculates cell probabilities for the multinomial likelihoods, as described in @sec-single-state-pm-probs.
+
+``` stan
+matrix get_multinomial_probs(
+    data int T,
+    vector p,
+    vector phi
+  ) {
+    // matrix to store multinomial probabilities
+    matrix[T-1, T] pr;
+    // convenience parameter
+    vector[T] q = 1 - p;
+    // define multinomial probabilities
+    for (t in 1:(T-1)) {
+      for (j in 1:(t-1)) {
+        pr[t][j] = 0;
+      }
+      for (j in t:(T - 1)) {
+        pr[t][j] = prod(phi[t:j]) * prod(q[(t+1):j]) * p[j+1] ;
+      }
+      pr[t][T] = 1 - sum(pr[t][1:(T-1)]);
+    }
+    return pr;
+  }
+```
+
+In the notation of @sec-single-state-pm-probs, `pr[i]` is $\btheta_i$ and `pr[i][T]` is $\xi_i$. 
+
+The file `01_cjs_pm.stan` in the folder `stan` contains the following complete Stan program for the single-state model with PM likelihood:
+
+``` stan
+functions {
+  matrix get_multinomial_probs(
+    data int T,
+    vector p,
+    vector phi
+  ) {
+    // matrix to store multinomial probabilities
+    matrix[T-1, T] pr;
+    // convenience parameter
+    vector[T] q = 1 - p;
+    // define multinomial probabilities
+    for (t in 1:(T-1)) {
+      for (j in 1:(t-1)) {
+        pr[t][j] = 0;
+      }
+      for (j in t:(T - 1)) {
+        pr[t][j] = prod(phi[t:j]) * prod(q[(t+1):j]) * p[j+1] ;
+      }
+      pr[t][T] = 1 - sum(pr[t][1:(T-1)]);
+    }
+    return pr;
+  }
+}
+
+data {
+  int<lower=2> T;                      // number of years
+   array[T-1, T] int<lower=0> marr;    // m-array 
+}
+
+parameters {
+  vector<lower=0,upper=1>[T] p;         // detection probability for 'residents'
+  vector<lower=0,upper=1>[T-1] phi;     // survival probability
+} 
+
+model {
+  // multinomial probabilities
+  matrix[T-1, T] pr;      
+  pr = get_multinomial_probs(T, p ,phi);
+  
+ // priors
+  p ~ beta(1,1);
+  phi ~ beta(1,1);
+  
+  // likelihood...
+  for (t in 1:(T - 1)) {
+    marr[t] ~ multinomial(pr[t]');
+  }
+}
+```
+
+## Implementing the EPM likelihood
+
+The base model assumes that all individuals are residents. Now we turn to the extension to account for transients. This requires some minor changes to
+
+-   the construction of m-arrays in R, and
+
+-   the Stan model code.
+
+
+### Preparing the data in R
+
+The following steps are required to prepare the data for the extended product-multinomial likelihood.
+
+i.  Split the capture histories into single-encounter and multiple-encounter histories.
+ii. Construct an m-array from the multiple-encounter capture histories alone. It is crucial that all single-encounter histories are removed *before* the m-array is constructed.
+iii. Count the number of single-encounter and multiple-encounter capture histories in each cohort.
+
+R code to perform these steps can be found in the script `01a_single-state_transients_epm.R` in the folder `R`.
+
+### Stan code
+
+Fortunately, the most complicated part of the Stan code, namely the function `get_multinomial_probs` requires no changes, so the functions code block remains unchanged.
+
+In the data block, we add the counts of single- and multi-encounter capture histories for each cohort:
+``` stan
+data {
+  int<lower=2> T;                      // number of years
+   array[T-1, T] int<lower=0> marr;    // m-array from multi-encounter histories only 
+   array[T-1] int<lower=0> Nsingle;    // no. single encounter histories per cohort 
+   array[T-1] int<lower=0> Nmult;      // no. multiple encounter histories per cohort
+}
+```
+
+::: callout-caution
+The m-array here must be constructed from *only* multiple-encounter capture histories. This is easy to forget as the Stan code declaring the m-array is unchanged from the initial model.
+:::
+
+The parameters block needs only have the residency probabilities added to it:
+
+``` stan
+parameters {
+  vector<lower=0,upper=1>[T] p;         // detection probability for 'residents'
+  vector<lower=0,upper=1>[T-1] phi;     // survival probability
+  vector<lower=0,upper=1>[T-1] pi_r;    // proportion 'residents' in each cohort
+}
+```
+
+In the model block one adds priors for the new parameters, and increments the log-posterior with the extra terms resulting from transients:
+
+``` stan
+model {
+  // multinomial probabilities
+  matrix[T-1, T] pr;
+  pr = get_multinomial_probs(T, p ,phi);
+
+  // priors
+  p ~ beta(1,1);
+  phi ~ beta(1,1);
+  pi_r ~ beta(1,1);
+  
+  // likelihood...
+  // ... for indiv recaptured at least once
+  for (t in 1:(T-1)) {
+    marr[t] ~ multinomial(pr[t]');
+    target += Nmult[t] * log(pi_r[t]); 
+  }
+  // ... for indiv never recaptured
+  for (t in 1:(T-1)) {
+    target += Nsingle[t] * log(pr[t][T] * pi_r[t] + (1 - pi_r[t]));
+  }
+}
+```
+
+The file `01a_cjs_transients_epm.stan` in the folder `stan` contains the full Stan program for the transient mixture
+model that extends the single-state models using an EPM likelihood. 
+
+# Multi-state model for two sites {#sec-two-state}
+
+## Base model specification
+
+The model has two live states corresponding to two sites. We assume that capture histories consist of zeros, ones and twos, indicating whether an individual was captured, and what site they were at if captured. The model parameters consist of
+
+-   $\phi_{i,t}$:  probability that an individual alive at site $i$ at time $t$ survives to time $t+1$,
+
+-   $p_{i,t}$: the probability that an individual alive at site $i$ at time $t$ is detected,
+
+-   $m_{i,j}$ the probability that an individual moves from site $i$ to site $j$ in one time interval, given survival.
+
+The movement probabilities are conditional on survival so for each source site they sum to one (e.g. $m_{1,1} + m_{1,2} = 1$). 
+
+## PM likelihood for the base model {#sec-two-state-pm}
+
+The m-array for models with more than one (live) state is still based on release-next recapture segments but incorporates the state at release and recapture as well. If there are $S$ states and $T$ capture occasions it consists of an $S(T-1) \times S(T-1) + 1$ array.
+
+### Constructing the m-array
+
+@tbl-ms_ch presents some example capture histories and the decomposition into release-next recapture (or release-never recapture) segments.
+
+| Complete capture history | Release (t=1) | Release (t=2) | Release (t=3) |
+|:------------------------:|:-------------:|:-------------:|:-------------:|
+|          $1021$          |    $102*$     |      \-       |    $**21$     |
+|          $2110$          |    $21**$     |    $*11*$     |    $**10$     |
+|          $1001$          |    $1001$     |      \-       |      \-       |
+|          $0210$          |      \-       |    $*21*$     |    $**10$     |
+|          $0100$          |      \-       |    $*100$     |      \-       |
+
+: Some multi-state capture histories decomposed into release - next recapture segments {#tbl-ms_ch tbl-colwidths="\[40,20,20,20\]"}
+
+The m-array for these data are presented in @tbl-ms_m-array. Now there are $S = 2$ rows for each release occasion and for each recapture occasion: the occasions are typset in bold and the state at release and recapture in italics. The entries in the table once again represent the frequency of the corresponding segment in the data.
+
+|       |     |  2  |  2  |  3  |  3  |  4  |  4  | Never |
+|:-----:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:-----:|
+|       |     | *1* | *2* | *1* | *2* | *1* | *2* |       |
+| **1** | *1* | $0$ | $0$ | $0$ | $1$ | $1$ | $0$ |  $0$  |
+| **1** | *2* | $1$ | $0$ | $0$ | $0$ | $0$ | $0$ |  $0$  |
+| **2** | *1* |     |     | $1$ | $0$ | $0$ | $0$ |  $1$  |
+| **2** | *2* |     |     | $1$ | $0$ | $0$ | $0$ |  $0$  |
+| **3** | *1* |     |     |     |     | $0$ | $0$ |  $2$  |
+| **3** | *2* |     |     |     |     | $1$ | $0$ |  $0$  |
+
+: m-array summary of the capture histories in @tbl-ms_ch. Occasions are in bold, states in italic. {#tbl-ms_m-array tbl-colwidths="\[5,5,10,10,10,10,10,10,10\]"}
+
+### Product-multinomial likelihood
+
+As before, the totals in each row are distributed according to a multinomial distribution. However, the cell probabilities for these multinomial distributions are easiest to calculate in $S \times S$ blocks using matrix multiplication.
+
+### Calculating cell probabilities {#sec-two-state-pm-probs}
+
+Consider the probability that an individual released from site $1$ at time $t$ is next recaptured at site $2$ at time $t+2$. Because we do not know where it was at time $t+1$, we have to average over the possibilities, yielding $$
+\underbrace{\phi_{1,t}m_{1,1}q_{1,t+1} \cdot \phi_{1,t+1}m_{1,2}p_{2,t+2}}_{\text{undetected at site } 1 \text{ at time } t+1 } +
+\underbrace{\phi_{1,t}m_{1,2}q_{2,t+1} \cdot \phi_{2,t+1}m_{2,2}p_{2,t+2}}_{\text{undetected at site } 2 \text{ at time } t+1 }
+$$ We also have to calculate the analogous probabilities for the other three combinations of site at release and next recapture. It turns out all the probabilities can be calculated at once as the product of suitable matrices: $$
+\begin{pmatrix}
+\phi_{1,t}m_{1,1} & \phi_{1,t}m_{1,2} \\
+\phi_{2,t}m_{2,1} & \phi_{2,t}m_{2,2} 
+\end{pmatrix}
+\begin{pmatrix}
+q_{1,t+1} & 0 \\
+0 & q_{2,t+1} 
+\end{pmatrix}
+\begin{pmatrix}
+\phi_{1,t+1}m_{1,1} & \phi_{1,t+1}m_{1,2} \\
+\phi_{2,t+1}m_{2,1} & \phi_{2,t+1}m_{2,2} 
+\end{pmatrix}
+\begin{pmatrix}
+p_{1,t+2} & 0 \\
+0 & p_{2,t+2} 
+\end{pmatrix}.
+$$ The $i,j^{\text{th}}$ entry of the resulting matrix is the probability that an individual released from site $i$ at time $t$ is next recaptured at site $j$ at time $t+2$. Therefore this matrix contains the cell probabilities for the $2 \times 2$ block of @tbl-ms_m-array corresponding to release occasion $1$ and next recapture occasion $3$.
+
+The blocks corresponding to other release and recapture occasions follow a similar pattern. Define $$
+\bg_t = \begin{pmatrix}
+\phi_{1,t}m_{1,1} & \phi_{1,t}m_{1,2} \\
+\phi_{2,t}m_{2,1} & \phi_{2,t}m_{2,2} 
+\end{pmatrix}, \hspace{10pt}
+\bo_t = \begin{pmatrix}
+p_{1,t} & 0  \\
+0 & p_{2,t}  
+\end{pmatrix} \hspace{5pt} \text{ and } \hspace{5pt}
+\boc_t = \begin{pmatrix}
+q_{1,t} & 0  \\
+0 & q_{2,t} 
+\end{pmatrix}. 
+$$
+
+Then the cell probabilities for the m-array form a matrix defined in blocks as
+
+|       |     **2**     |           **3**            |                  **4**                  | **Never** |
+|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
+| **1** | $\bg_1 \bo_2$ | $\bg_1 \boc_2 \bg_2 \bo_3$ | $\bg_1 \boc_2 \bg_2 \boc_3 \bg_3 \bo_4$ |  $\bx_1$  |
+| **2** |     $\bz$     |       $\bg_2 \bo_3$        |        $\bg_2 \boc_3\bg_3 \bo_4$        |  $\bx_2$  |
+| **3** |     $\bz$     |           $\bz$            |              $\bg_3 \bo_4$              |  $\bx_3$  |
+
+As in the single-state case, the $\bx_i$ are determined by the constraint that each row sum to one (but now they are column vectors of length $2$). The cell probabilities for each multinomial distribution are contained in the rows of this matrix.
+
+## Implementing the PM likelihood
+
+### Preparing the data in R
+
+In R we construct the multi-state m-array with our custom function `get_marray`. The m-array now has dimensions $2(T-1) \times 2(T-1)+1$ for a study of length $T$.
+
+### Stan model code
+
+The structure of the Stan code is very similar to the single-state model (without transients), except that the function to compute multinomial cell probabilities is a little more complicated. Treating the contents of the function as a black box for now, the Stan code is:
+
+``` stan
+functions {
+  matrix get_multinomial_probs(
+    data int T,
+    array[] vector p,
+    array[] vector phi,
+    array[] vector m
+  ) {
+    // ... function body ...
+  }
+}
+
+data {
+  int<lower=2> T;                                 // number of years
+  array[2*(T-1), 2*(T-1)+1] int<lower=0> marr;    // m-array
+}
+
+parameters {
+  array[2] vector<lower=0,upper=1>[T] p;      // detection probabilities
+  array[2] vector<lower=0,upper=1>[T-1] phi;  // survival probabilities
+  array[2] simplex[2] m;                      // movement probabilities 
+}
+
+model {
+  // calculate multinomial probabilities
+  matrix[2*(T-1), 2*(T-1)+1] pr;
+  pr = get_multinomial_probs( T, p, phi, m );
+  // m-array capture-recapture likelihood
+  for (i in 1:(2*(T-1))) {
+    marr[i] ~ multinomial(pr[i]');
+  }
+}
+```
+
+We have  declared survival and detection probabilities as arrays of vectors, with the array index corresponding to site, and the vector index to time. For example, `phi` is an array with two elements, `phi[1]` is a vector of survival probabilities at site 1 for occasions $t = 1, \cdots, T-1$, and `phi[2]` contains those for site 2. The movement probabilities are conditional on survival, thus they must sum to one for each source site. Stan's simplex data type conveniently handles this constraint. For example, `m[1]` is a simplex (a vector of non-negative reals that sums to one) containing the movement probabilities $m_{1,1}, m_{1,2}$.
+
+The function `get_multinomial_probs` implements the calculation of cell probabilities in blocks using matrix multiplication, as described in @sec-two-state-pm-probs.
+
+``` stan
+matrix get_multinomial_probs(
+  data int T,
+  array[] vector p,
+  array[] vector phi,
+  array[] vector m
+) {
+  // matrix to store multinomial probabilities
+  matrix[2*(T-1), 2*(T-1)+1] pr = rep_matrix(0.0, 2*(T-1), 2*(T-1)+1);
+  // auxillary matrices to define multinomial probabilities
+  array[T-1] matrix[2,2] gamma;   // state transition probabilities
+  array[T] matrix[2,2] omega;     // state-dependent detection probabilities
+  for (t in 1:(T-1)) {
+    gamma[t][1] = [phi[1][t]*m[1][1], phi[1][t]*m[1][2]];
+    gamma[t][2] = [phi[2][t]*m[2][1], phi[2][t]*m[2][2]];
+  }
+  for (t in 1:T) {
+    omega[t][1] = [p[1][t], 1-p[1][t]];
+    omega[t][2] = [p[2][t], 1-p[2][t]];
+  }
+  // define entries of pr using matrix multiplication
+  for (I in 1:(T-1)) {  // block row index
+    for (J in I:(T-1)) {  // block column index
+      // row and column indices to define the 2x2 block 
+      int i1 = 1 + 2*(I-1);
+      int i2 = 2*I;
+      int j1 = 1 + 2*(J-1);
+      int j2 = 2*J;
+      if (I == J) {  // diagonal block
+        pr[i1:i2, j1:j2] = diag_post_multiply(gamma[I], omega[I+1][:,1]);
+      }
+      else if (I < J) {  // above-diagonal block
+        matrix[2,2] temp = diag_post_multiply(gamma[I], omega[I+1][:,2]);
+        if ( (I+1) < J ) {
+          for (t in (I+1):(J-1)) {
+            temp = temp * diag_post_multiply(gamma[t], omega[t+1][:,2]);
+          }
+        }
+        pr[i1:i2, j1:j2] = temp * diag_post_multiply(gamma[J], omega[J+1][:,1]);
+      }
+    }
+  }
+  // enforce row-sum-to-one constraint
+  for (i in 1:(2*(T-1))){
+    pr[i, 2*(T-1)+1] = 1 - sum(pr[i, 1:2*(T-1)]);
+  }
+    return pr;
+  }
+```
+The $2 \times 2$ matrices `gamma[t]` in the code are the $\bg_t$ of @sec-two-state-pm-probs, but we have abused notation with the variables `omega[t]`. The code's `omega[t]` are *not* the $\bo_t$ of the text, but instead contain the diagonal entries of both $\bo_t$ and $\boc_t$ as their first and second column, respectively. Then  $\bg_t \bo_{t+1}$ is calculated with `diag_post_multiply(gamma[t], omega[t+1][:,1])` and $\bg_t \boc_{t+1}$ with  `diag_post_multiply(gamma[t], omega[t+1][:,2])`. 
+
+
+## Implementing the EPM likelihood
+
+# Multi-state model for two sites with trap-dependence {#sec-four-state}
+
+## Base model specification
+
+## PM likelihood for the base model
+
+## Implementing the PM likelihood
+
+## Implementing the EPM likelihood
