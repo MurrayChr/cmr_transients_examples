@@ -1,19 +1,15 @@
-**Stan model code**
+## Stan model code
 
-**"01_cjs_pm.stan"** fits the CJS model (without transients) using the 
-product-multinomial likelihood.
+Stan model code for base models, and their extensions to transient mixture models using either extended product-multinomial (EPM) or hierarchical hidden Markov model (HHMM) likelihoods
 
-**"01a_cjs_transients_epm.stan"** fits the CJS-with-transients model using the 
-extended product-multinomial likelihood.
+The base models are:
 
-**"01b_cjs_transients_hhmm.stan"** fits the CJS-with-transients model using the 
-'multievent' or hierarchical hidden markov model likelihood.
+ | File prefix | Base model description |
+ | :---: | :----: |
+ | 01 | Single-state model |
+ | 02 | Two-state model for two sites |
+ | 03 | Four-state model for two sites incorporating trap-dependence |
 
-**"02_ms_pm.stan"** fits a multi-state model (with two states, without transients) using the 
-product-multinomial likelihood.
+ File names for transient mixture models have `transients` in their name, and the `epm` or `hhmm` suffix indicates which likelihood is used. 
 
-**"02a_ms_transients_epm.stan"** fits a multi-state-with-transients model 
-using the extended product-multinomial likelihood. 
 
-**"02b_ms_transients_hhmm.stan"** fits a multi-state-with-transients model 
-using the 'multievent' or hierarchical hidden markov model likelihood.
