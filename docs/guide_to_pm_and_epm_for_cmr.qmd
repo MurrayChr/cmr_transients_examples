@@ -647,7 +647,7 @@ Now detection probabilities are site- and trap-dependent:
 
 -   $p^U_{i,t}$: the probability that a trap-unaware individual is detected at site $i$ at time $t$.
 
-We assume that survival and movement occur over the interval from $t$ to $t+1$, whilst detection occurs at $t+1$ (cite Pradel). For example, the probability of transitioning from the state *alive at site* $1$, trap-aware at time $t$ to *alive at site* $2$, trap-unaware at $t+1$ is $$ 
+We assume that survival and movement occur over the interval from $t$ to $t+1$, whilst detection occurs at $t+1$ [@pradel_trap-awareness]. For example, the probability of transitioning from the state *alive at site 1, trap-aware* at time $t$ to *alive at site 2, trap-unaware* at $t+1$ is $$ 
 \phi_{1, t} \cdot m_{1,2} \cdot \left(1 - p^A_{2, t+1}\right).
 $$ {#eq-trap-dep_trans_prob}
 
@@ -690,7 +690,7 @@ With these definitions the reduction of capture histories to m-arrays and calcul
 
 The Stan implementation of the product-multinomial likelihood for this four-state model is similar to
 that for the two-state model (see @sec-two-state-pm_stan). The function `get_multinomial_probs` incorporates the
-changes to the state-transition and observation matrices discussed above. The zeroes in the observation matrix cause problems for Stan's automatic differentiation, so we use the hack of replacing them with very small positive numbers `eps`, which is defined in a `transformed data` block:
+changes to the state-transition and observation matrices discussed above. The zeroes in the observation matrix cause problems for Stan's automatic differentiation, so we use the hack of replacing them with a very small positive number `eps`, which is defined in a `transformed data` block:
 
 ``` stan
 functions {
