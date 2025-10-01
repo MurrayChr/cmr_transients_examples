@@ -1,30 +1,19 @@
-**R files for analyses**
+## R files for analyses 
 
-**01_single_state.R** simulates and fits a single-state CJS model (without transients) 
-using the product-multinomial likelihood, and compares estimates to data-generating values. 
+- `00_function_get_marray.R` contains the function to convert capture histories into a single- or multi-state m-array
 
-**01a_single_state_transients_epm.R** simulates and fits the CJS-plus-transients
-model using the extended product-multinomial ('epm') likelihood, and compares estimates
-to data-generating values. 
+- `04_compare_efficiency_epm_vs_hhmm.R` compares the computational efficiency of transient mixture models fitted with extended product-multinomial (EPM) or hiearachical hidden Markov model (HHMM) likelihoods (using functions in `04_data_sim_and_prep_functions.R`).
 
-**01b_single-state_transients_hhmm.R** simulates and fits the CJS-plus-transients
-model using the hierarchical hidden markov model ('hhmm') likelihood, and compares 
-estimates to data-generating values. 
+- Files starting with the prefices 01, 02, 03 all relate to a common *base* model (without transients), which is extended to include transients:
 
-**01c_single-state_transients_compare.R** simulates and fits the CJS-plus-transients
-model using both likelihoods, and compares the marginal posterior distributions. 
+ | File prefix | Base model description |
+ | :---: | :----: |
+ | 01 | Single-state model |
+ | 02 | Two-state model for two sites |
+ | 03 | Four-state model for two sites incorporating trap-dependence |
 
-**02_multi-state.R** simulates and fits a simple multistate model (without transients) 
-using the product-multinomial likelihood, and compares estimates to data-generating 
-values.
-
-**02a_multistate_transients_epm.R** simulates and fits a multistate-with-transients 
-model using the extended product-multinomial ('epm') likelihood, and compares estimates
-to data-generating values. 
-
-**02b_multistate_transients_hhmm.R** simulates and fits the multistate-with-transients
-model using the hierarchical hidden markov model ('hhmm') likelihood, and compares 
-estimates to data-generating values. 
-
-**02c_multistate_transients_compare.R** simulates and fits the multistate-with-transients
-model using both likelihoods, and compares the marginal posterior distributions. 
+- For each of the base models there are four files, 
+    - the first (e.g. 01_*) simulates data from the base model and fits the model to that data using a product-multinomial likelihood
+    - the second (e.g. 01a_*) extends the base model to include transients, simulates data from the transient mixture model, and fits the model to that data using the EPM likelihood
+    - the third (e.g. 01b_*) is the same as the previous, but fits the model using the HHMM likelihood
+    - the fourth (e.g. 01c_*) fits the model with EPM and HHMM likelihood to the same data generated from the model and compares marginal posterior distributions 
