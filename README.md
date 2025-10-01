@@ -1,4 +1,13 @@
-# cmr_transients_examples
-Simple examples of Bayesian mark-recapture models with transients, fit using extended-product-multinomial and hierarchical-hmm likelihoods.
+## Extended product-multinomial likelihoods for transient mixture models
 
-We consider a single-state Cormack-Jolly-Seber model and a multi-state model for survival and movement at two sites. First we provide R code to simulate data from these models and Stan code to fit them. Then we consider the extensions of each to include transients. Again, R code is provided to simulate from the models with transients, and Stan code is provided to fit these models. Both are written in such a way that the modifications required to move from the initial models *without* transients to the models accounting for transients are clear. We offer Stan implementations of our extended product-multinomial likelihood and a hierarchical hidden Markov model (or multievent) likelihood, and R code to compare the marginal posteriors.  
+This repository contains
+
+i. three examples using extended product-multinomial (EPM) likelihoods for transient mixture models, 
+
+ii. a comparison of computational efficiency between EPM likelihoods and hierarchical hidden Markov likelihoods fit using Bayesian inference,  
+
+iii. a detailed guide to implementating the examples in R and Stan. 
+
+Relevant background and theory is described in *Computationally efficient Bayesian capture-mark-recapture models with transients, applied to survival of hand-reared African Penguins*. Scripts to run the analyses are in the folder `R`, with Stan model code in `stan`. The guide to implementation is in the `docs` folder. 
+
+
