@@ -2,7 +2,7 @@
 
 - `00_function_get_marray.R` contains the function to convert capture histories into a single- or multi-state m-array
 
-- `04_compare_efficiency_epm_vs_hhmm.R` compares the computational efficiency of transient mixture models fitted with extended product-multinomial (EPM) or hiearachical hidden Markov model (HHMM) likelihoods (using functions in `04_data_sim_and_prep_functions.R`).
+- `04_compare_efficiency_epm_vs_hhmm.R` compares the computational efficiency of transient mixture models fitted with extended product-multinomial (EPM) or hiearachical hidden Markov model (HHMM) likelihoods (using functions in `04_data_sim_and_prep_functions.R`) for models of different complexity, over a range of study sizes.
 
 - Files starting with the prefices 01, 02, 03 all relate to a common *base* model (without transients), which is extended to include transients:
 
