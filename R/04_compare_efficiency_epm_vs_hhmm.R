@@ -113,9 +113,9 @@ as_tibble(rt) %>%
   geom_point(size = 2.5) + 
   geom_line(alpha = 0.3, linewidth = 1) +
   theme_classic() +
-  coord_cartesian(ylim = c(0, 60)) +
+  coord_cartesian(ylim = c(0, 105)) +
   scale_x_continuous(breaks = c(n_vals, 300)) +
-  scale_y_continuous(breaks =10*(0:6)) +
+  scale_y_continuous(breaks =20*(0:5)) +
   scale_colour_manual(name = "Occasions", values = colours) +
   theme(
     panel.grid.major = element_line(colour = "grey95"),
@@ -127,5 +127,5 @@ as_tibble(rt) %>%
   ) +
   facet_wrap(vars(model), labeller = as_labeller(model_names)) +
   labs(y = "Speed-up factor", x = "Newly marked individuals per occasion")
-ggsave("figs/04_compare_efficiency.png", scale = 1.2)  
+ggsave("figs/04_compare_efficiency.png", scale = 1.75)  
 
