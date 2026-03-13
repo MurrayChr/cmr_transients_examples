@@ -124,7 +124,7 @@ sim_data_02 <- function(
   p[2,] <- rbeta(T, 8, 2)         # detection at site 2
   m <- matrix(0, 2, 2)
   m[1,] <- c(0.7, 0.3)          # movement prob from site 1 (given survival) 
-  m[2,] <- c(0.5, 0.5)          # movement prob from site 1 (given survival) 
+  m[2,] <- c(0.5, 0.5)          # movement prob from site 2 (given survival) 
   # check following is TRUE
   all(rowSums(m) == c(1,1)) 
   
@@ -266,7 +266,7 @@ sim_data_03 <- function(
   pU[2,] <- rbeta(T, 6, 4)         # detection at site 2 for trap-unaware indiv 
   m <- matrix(0, 2, 2)
   m[1,] <- c(0.7, 0.3)          # movement prob from site 1 (given survival) 
-  m[2,] <- c(0.5, 0.5)          # movement prob from site 1 (given survival) 
+  m[2,] <- c(0.5, 0.5)          # movement prob from site 2 (given survival) 
   
   # construct state transition matrices
   Gamma <- list()
