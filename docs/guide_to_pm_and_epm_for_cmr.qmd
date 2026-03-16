@@ -96,7 +96,7 @@ Now we calculate the cell probabilities $\btheta_i$ in terms of survival ($\phi_
 In the case of segments where an individual was released at time $t$ and never recaptured, the probabilities are one minus the probability of being released at time $t$ and recaptured at any later occasion. That is, if $\xi_t$ is the probability of never being recaptured given release at time $t$, then $\xi_t$ is calculated as one minus the sum of all the other entries in the same row. The $\xi_t$ can be written out in terms of survival and detection probabilities but the expressions are lengthy and not used directly, so we opt not do so.
 
 |       |    **2**    |         **3**         |              **4**              | **never** |
-|:-----------:|:-----------:|:------------:|:-------------------:|:-----------:|
+|:------------:|:------------:|:------------:|:--------------:|:------------:|
 | **1** | $\phi_1p_2$ | $\phi_1q_2 \phi_2p_3$ | $\phi_1q_2 \phi_2q_3 \phi_3p_4$ |  $\xi_1$  |
 | **2** |     $0$     |      $\phi_2p_3$      |      $\phi_2q_3 \phi_3p_4$      |  $\xi_2$  |
 | **3** |     $0$     |          $0$          |           $\phi_3p_4$           |  $\xi_3$  |
@@ -336,7 +336,7 @@ The model has two live states corresponding to two sites. We assume that capture
 
 -   $p_{i,t}$: the probability that an individual alive at site $i$ at time $t$ is detected,
 
--   $m_{i,j}$ the probability that an individual moves from site $i$ to site $j$ in one time interval, given survival.
+-   $m_{i,j}$: the probability that an individual moves from site $i$ to site $j$ in one time interval, given survival.
 
 The movement probabilities are conditional on survival so for each source site they sum to one (e.g. $m_{1,1} + m_{1,2} = 1$).
 
@@ -378,13 +378,12 @@ As before, the totals in each row are distributed according to a multinomial dis
 
 ### Calculating cell probabilities {#sec-two-state-pm-probs}
 
-Consider the probability that an individual released from site $1$ at time $t$ is next recaptured at site $2$ at time $t+2$. Because we do not know where it was at time $t+1$, we have to average over the possibilities, yielding 
+Consider the probability that an individual released from site $1$ at time $t$ is next recaptured at site $2$ at time $t+2$. Because we do not know where it was at time $t+1$, we have to average over the possibilities, yielding
 
 $$
 \underbrace{\phi_{1,t}m_{1,1}q_{1,t+1} \cdot \phi_{1,t+1}m_{1,2}p_{2,t+2}}_{\text{undetected at site } 1 \text{ at time } t+1 } +
 \underbrace{\phi_{1,t}m_{1,2}q_{2,t+1} \cdot \phi_{2,t+1}m_{2,2}p_{2,t+2}}_{\text{undetected at site } 2 \text{ at time } t+1 }
-$$ 
-We also have to calculate the analogous probabilities for the other three combinations of site at release and next recapture. It turns out all the probabilities can be calculated at once as the product of suitable matrices: 
+$$ We also have to calculate the analogous probabilities for the other three combinations of site at release and next recapture. It turns out all the probabilities can be calculated at once as the product of suitable matrices:
 
 $$
 \begin{pmatrix}
@@ -403,11 +402,11 @@ q_{1,t+1} & 0 \\
 p_{1,t+2} & 0 \\
 0 & p_{2,t+2} 
 \end{pmatrix}.
-$$ 
+$$
 
 The $i,j^{\text{th}}$ entry of the resulting matrix is the probability that an individual released from site $i$ at time $t$ is next recaptured at site $j$ at time $t+2$. Therefore this matrix contains the cell probabilities for the $2 \times 2$ block of @tbl-two-state_m-array corresponding to release occasion **1** and next recapture occasion **3**.
 
-The blocks corresponding to other release and recapture occasions follow a similar pattern. Define 
+The blocks corresponding to other release and recapture occasions follow a similar pattern. Define
 
 $$
 \bg_t = \begin{pmatrix}
@@ -427,7 +426,7 @@ $$ {#eq-two-state_trans_obs_matrices}
 Then the cell probabilities for the m-array form a matrix defined in blocks as
 
 |       |     **2**     |           **3**            |                  **4**                  | **never** |
-|:----------:|:----------:|:------------:|:--------------------:|:----------:|
+|:------------:|:------------:|:------------:|:----------------:|:------------:|
 | **1** | $\bg_1 \bo_2$ | $\bg_1 \boc_2 \bg_2 \bo_3$ | $\bg_1 \boc_2 \bg_2 \boc_3 \bg_3 \bo_4$ |  $\bx_1$  |
 | **2** |     $\bz$     |       $\bg_2 \bo_3$        |        $\bg_2 \boc_3\bg_3 \bo_4$        |  $\bx_2$  |
 | **3** |     $\bz$     |           $\bz$            |              $\bg_3 \bo_4$              |  $\bx_3$  |
@@ -665,7 +664,7 @@ $$
 \end{pmatrix}
 $$
 
-With the detection probabilities contained in the state-transition matrices, the observation matrices $\bo_t$ and $\boc_t$ just express the fact that recaptures are, by definition, of trap-aware states, and non-captures are, again by defintion, of trap-unaware states: 
+With the detection probabilities contained in the state-transition matrices, the observation matrices $\bo_t$ and $\boc_t$ just express the fact that recaptures are, by definition, of trap-aware states, and non-captures are, again by defintion, of trap-unaware states:
 
 $$
 \bo_t = 
@@ -688,9 +687,7 @@ With these definitions the reduction of capture histories to m-arrays and calcul
 
 ## Implementing the PM likelihood
 
-The Stan implementation of the product-multinomial likelihood for this four-state model is similar to
-that for the two-state model (see @sec-two-state-pm_stan). The function `get_multinomial_probs` incorporates the
-changes to the state-transition and observation matrices discussed above. The zeroes in the observation matrix cause problems for Stan's automatic differentiation, so we use the hack of replacing them with a very small positive number `eps`, which is defined in a `transformed data` block:
+The Stan implementation of the product-multinomial likelihood for this four-state model is similar to that for the two-state model (see @sec-two-state-pm_stan). The function `get_multinomial_probs` incorporates the changes to the state-transition and observation matrices discussed above. The zeroes in the observation matrix cause problems for Stan's automatic differentiation, so we use the hack of replacing them with a very small positive number `eps`, which is defined in a `transformed data` block:
 
 ``` stan
 functions {
@@ -799,8 +796,4 @@ model {
 
 ## Implementing the EPM likelihood
 
-Having implemented the PM likelihood for the base model, the steps
-to implement the EPM likelihood for the transient mixture model are the same 
-as in two-site model (@sec-two-state-epm). Code for this case is in 
-`03a_multistate-plus-trapdep_transients_epm.R`of the `R` folder, and 
-`03a_ms-plus-td_transients_epm.stan` of the `stan` folder.   
+Having implemented the PM likelihood for the base model, the steps to implement the EPM likelihood for the transient mixture model are the same as in two-site model (@sec-two-state-epm). Code for this case is in `03a_multistate-plus-trapdep_transients_epm.R`of the `R` folder, and `03a_ms-plus-td_transients_epm.stan` of the `stan` folder.
