@@ -40,7 +40,7 @@ Each section follows the same format, first specifying the base model, then expl
 
 Some familiarity with Stan would be helpful, but the intention and algorithmic details of the code should be clear even if the syntax is unfamiliar. Excellent Stan resources are available [here](https://mc-stan.org/docs/).
 
-We have also attempted to provide a self-contained introduction to product-multinomial likelihoods for single state models (in @sec-single-state-pm) and multi-state models (in @sec-two-state-pm). For further reading we recommend Williams *et al.* [-@williams2002analysis, Chapter 17].
+We have also attempted to provide a self-contained introduction to product-multinomial likelihoods for single state models (in @sec-single-state-pm) and multi-state models (in @sec-two-state-pm). For further reading we recommend Williams *et al.* [-@williams2002analysis, Chapter 17] or Schaub and Kéry [-@schaub2021integrated, Chapters 4.5].
 
 # Single state model {#sec-single-state}
 
@@ -96,7 +96,7 @@ Now we calculate the cell probabilities $\btheta_i$ in terms of survival ($\phi_
 In the case of segments where an individual was released at time $t$ and never recaptured, the probabilities are one minus the probability of being released at time $t$ and recaptured at any later occasion. That is, if $\xi_t$ is the probability of never being recaptured given release at time $t$, then $\xi_t$ is calculated as one minus the sum of all the other entries in the same row. The $\xi_t$ can be written out in terms of survival and detection probabilities but the expressions are lengthy and not used directly, so we opt not do so.
 
 |   | **2** | **3** | **4** | **never** |
-|:--:|:--:|:--:|:--:|:--:|
+|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
 | **1** | $\phi_1p_2$ | $\phi_1q_2 \phi_2p_3$ | $\phi_1q_2 \phi_2q_3 \phi_3p_4$ | $\xi_1$ |
 | **2** | $0$ | $\phi_2p_3$ | $\phi_2q_3 \phi_3p_4$ | $\xi_2$ |
 | **3** | $0$ | $0$ | $\phi_3p_4$ | $\xi_3$ |
@@ -426,7 +426,7 @@ $$ {#eq-two-state_trans_obs_matrices}
 Then the cell probabilities for the m-array form a matrix defined in blocks as
 
 |   | **2** | **3** | **4** | **never** |
-|:--:|:--:|:--:|:--:|:--:|
+|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
 | **1** | $\bg_1 \bo_2$ | $\bg_1 \boc_2 \bg_2 \bo_3$ | $\bg_1 \boc_2 \bg_2 \boc_3 \bg_3 \bo_4$ | $\bx_1$ |
 | **2** | $\bz$ | $\bg_2 \bo_3$ | $\bg_2 \boc_3\bg_3 \bo_4$ | $\bx_2$ |
 | **3** | $\bz$ | $\bz$ | $\bg_3 \bo_4$ | $\bx_3$ |
