@@ -95,11 +95,11 @@ Now we calculate the cell probabilities $\btheta_i$ in terms of survival ($\phi_
 
 In the case of segments where an individual was released at time $t$ and never recaptured, the probabilities are one minus the probability of being released at time $t$ and recaptured at any later occasion. That is, if $\xi_t$ is the probability of never being recaptured given release at time $t$, then $\xi_t$ is calculated as one minus the sum of all the other entries in the same row. The $\xi_t$ can be written out in terms of survival and detection probabilities but the expressions are lengthy and not used directly, so we opt not do so.
 
-|       |    **2**    |         **3**         |              **4**              | **never** |
-|:------------:|:------------:|:------------:|:--------------:|:------------:|
-| **1** | $\phi_1p_2$ | $\phi_1q_2 \phi_2p_3$ | $\phi_1q_2 \phi_2q_3 \phi_3p_4$ |  $\xi_1$  |
-| **2** |     $0$     |      $\phi_2p_3$      |      $\phi_2q_3 \phi_3p_4$      |  $\xi_2$  |
-| **3** |     $0$     |          $0$          |           $\phi_3p_4$           |  $\xi_3$  |
+|   | **2** | **3** | **4** | **never** |
+|:--:|:--:|:--:|:--:|:--:|
+| **1** | $\phi_1p_2$ | $\phi_1q_2 \phi_2p_3$ | $\phi_1q_2 \phi_2q_3 \phi_3p_4$ | $\xi_1$ |
+| **2** | $0$ | $\phi_2p_3$ | $\phi_2q_3 \phi_3p_4$ | $\xi_2$ |
+| **3** | $0$ | $0$ | $\phi_3p_4$ | $\xi_3$ |
 
 : Cell probabilities for the m-array in @tbl-cjs_m-array: row names indicate release occasions and column names the occasion of next recapture, or never recaptured. {#tbl-cjs_pm_probs}
 
@@ -425,11 +425,11 @@ $$ {#eq-two-state_trans_obs_matrices}
 
 Then the cell probabilities for the m-array form a matrix defined in blocks as
 
-|       |     **2**     |           **3**            |                  **4**                  | **never** |
-|:------------:|:------------:|:------------:|:----------------:|:------------:|
-| **1** | $\bg_1 \bo_2$ | $\bg_1 \boc_2 \bg_2 \bo_3$ | $\bg_1 \boc_2 \bg_2 \boc_3 \bg_3 \bo_4$ |  $\bx_1$  |
-| **2** |     $\bz$     |       $\bg_2 \bo_3$        |        $\bg_2 \boc_3\bg_3 \bo_4$        |  $\bx_2$  |
-| **3** |     $\bz$     |           $\bz$            |              $\bg_3 \bo_4$              |  $\bx_3$  |
+|   | **2** | **3** | **4** | **never** |
+|:--:|:--:|:--:|:--:|:--:|
+| **1** | $\bg_1 \bo_2$ | $\bg_1 \boc_2 \bg_2 \bo_3$ | $\bg_1 \boc_2 \bg_2 \boc_3 \bg_3 \bo_4$ | $\bx_1$ |
+| **2** | $\bz$ | $\bg_2 \bo_3$ | $\bg_2 \boc_3\bg_3 \bo_4$ | $\bx_2$ |
+| **3** | $\bz$ | $\bz$ | $\bg_3 \bo_4$ | $\bx_3$ |
 
 : Cell probabilities for the multistate m-array in @tbl-two-state_m-array arranged in state blocks: row names indicate release occasions and column names the occasion of next recapture, or never recaptured. {#tbl-two-state_pm_probs}
 
