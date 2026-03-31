@@ -12,6 +12,6 @@ Relevant background and theory is described in *Computationally efficient Bayesi
 
 Scripts to run the analyses are in the folder `R`, with Stan model code in `stan`. 
 
-Here is the the [Guide to Implementation in R and Stan](https://murraychr.github.io/cmr_transients_examples/). 
+Here is the [Guide to Implementation in R and Stan](https://murraychr.github.io/cmr_transients_examples/). 
 
 
