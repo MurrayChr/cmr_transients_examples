@@ -26,7 +26,7 @@ $$
 
 # Overview
 
-The purpose of this guide is to facilitate the implementation of extended product-multinomial likelihoods (EPM) for transient mixture models in R and Stan. Although the emphasis is on EPM likelihoods, we include an introduction to product-multinomial (PM) likelihoods and their implementation. Most of the programming effort goes into the reduction of capture histories to m-arrays and the calculation of associated multinomial cell probabilities. Having done this, only minor extensions are required to include transients.
+The purpose of this guide is to facilitate the implementation of extended product-multinomial likelihoods (EPM) for transient mixture models in R and Stan. Although the emphasis is on EPM likelihoods, we include an introduction to product-multinomial (PM) likelihoods and their implementation. Most of the programming effort goes into the reduction of capture histories to m-arrays and the calculation of associated multinomial cell probabilities. Having done this, only minor extensions are required to include transients. All R and Stan files mentioned in this guide are available in [this repository](https://github.com/MurrayChr/cmr_transients_examples/).
 
 We consider the situation where one has an initial *base* model for which a PM likelihood is available, and one wants to extend the model to account for transients. Three base models of increasing complexity are considered:
 

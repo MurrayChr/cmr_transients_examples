@@ -2424,7 +2424,7 @@ window.Quarto = {
 </div>
 <section id="overview" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Overview</h1>
-<p>The purpose of this guide is to facilitate the implementation of extended product-multinomial likelihoods (EPM) for transient mixture models in R and Stan. Although the emphasis is on EPM likelihoods, we include an introduction to product-multinomial (PM) likelihoods and their implementation. Most of the programming effort goes into the reduction of capture histories to m-arrays and the calculation of associated multinomial cell probabilities. Having done this, only minor extensions are required to include transients.</p>
+<p>The purpose of this guide is to facilitate the implementation of extended product-multinomial likelihoods (EPM) for transient mixture models in R and Stan. Although the emphasis is on EPM likelihoods, we include an introduction to product-multinomial (PM) likelihoods and their implementation. Most of the programming effort goes into the reduction of capture histories to m-arrays and the calculation of associated multinomial cell probabilities. Having done this, only minor extensions are required to include transients. All R and Stan files mentioned in this guide are available in <a href="https://github.com/MurrayChr/cmr_transients_examples/">this repository</a>.</p>
 <p>We consider the situation where one has an initial <em>base</em> model for which a PM likelihood is available, and one wants to extend the model to account for transients. Three base models of increasing complexity are considered:</p>
 <ol type="1">
 <li>A single-state Cormack-Jolly-Seber model (<a href="#sec-single-state" class="quarto-xref">Section 2</a>).</li>
